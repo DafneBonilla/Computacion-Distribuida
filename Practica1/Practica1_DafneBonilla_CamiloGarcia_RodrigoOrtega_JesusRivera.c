@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Prueba de que el arreglo de distancias se lleno correctamente
+    /* Prueba de que el arreglo de distancias se lleno correctamente
     for (int i = 0; i < size; i++)
     {
         if (rank == i)
@@ -77,8 +77,54 @@ int main(int argc, char *argv[])
             printf("\n");
         }
     }
+    */
+
+    int distancia_cero[size];
 
     // 2. El nodo 0 envia su arreglo de distancias a todos los demas nodos.
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == 0)
+        {
+            if (rank != i)
+            {
+                // El nodo 0 envia su arreglo de distancias al nodo i
+                MPI_Send(&distancia, size, MPI_INT, i, TAG_SOLICITUD, MPI_COMM_WORLD);
+            }
+        }
+        else if (rank == i)
+        {
+            // El nodo i recibe el arreglo de distancias del nodo 0
+            MPI_Recv(&distancia_cero, size, MPI_INT, 0, TAG_SOLICITUD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    }
+
+    /* Prueba de que los nodos tienen el arreglo de distancias del nodo 0
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            if (rank == 0)
+            {
+                printf("Nodo %i: ", rank);
+                for (int j = 0; j < size; j++)
+                {
+                    printf("%i, ", distancia[j]);
+                }
+                printf("\n");
+            }
+            else
+            {
+                printf("Nodo %i: ", rank);
+                for (int j = 0; j < size; j++)
+                {
+                    printf("%i, ", distancia_cero[j]);
+                }
+                printf("\n");
+            }
+        }
+    }
+    */
 
     // 3. Para cada entrada i del arreglo, el nodo j almacena el mínimo entre la distancia actual de 0 a i y la suma de la distancia de 0 a j + la distancia de j a i
 
@@ -94,8 +140,10 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// Para compilar desde /Practica1:
-// mpicc Practica1_DafneBonilla_CamiloGarcia_RodrigoOrtega_JesusRivera.c
-// Para ejecutar desde /Practica1:
-// mpirun -np n --oversubscribe ./a.out
-// Donde n es el numero de nodos deseados
+/*
+Para compilar desde /Practica1:
+mpicc Practica1_DafneBonilla_CamiloGarcia_RodrigoOrtega_JesusRivera.c
+Para ejecutar desde /Practica1:
+mpirun -np n --oversubscribe ./a.out
+Donde n es el numero de nodos deseados
+*/
