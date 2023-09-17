@@ -5,6 +5,7 @@
 
 #define TAG_SOLICITUD 1
 #define TAG_RESPUESTA 2
+#define TAG_O_DISTANCIA 3
 
 int main(int argc, char *argv[])
 {
@@ -89,13 +90,13 @@ int main(int argc, char *argv[])
             if (rank != i)
             {
                 // El nodo 0 envia su arreglo de distancias al nodo i
-                MPI_Send(&distancia, size, MPI_INT, i, TAG_SOLICITUD, MPI_COMM_WORLD);
+                MPI_Send(&distancia, size, MPI_INT, i, TAG_O_DISTANCIA, MPI_COMM_WORLD);
             }
         }
         else if (rank == i)
         {
             // El nodo i recibe el arreglo de distancias del nodo 0
-            MPI_Recv(&distancia_cero, size, MPI_INT, 0, TAG_SOLICITUD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&distancia_cero, size, MPI_INT, 0, TAG_O_DISTANCIA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
     }
 
