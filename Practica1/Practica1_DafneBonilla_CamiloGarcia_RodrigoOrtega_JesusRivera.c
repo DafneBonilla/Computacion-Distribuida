@@ -80,7 +80,17 @@ int main(int argc, char *argv[])
     }
     */
 
+    // Arreglo para que cada nodo almacene el arreglo de distancias del nodo 0
     int distancia_cero[size];
+
+    if (rank == 0)
+    {
+        // El nodo 0 copia su arreglo de distancias al arreglo de distancias del nodo 0
+        for (int i = 0; i < size; i++)
+        {
+            distancia_cero[i] = distancia[i];
+        }
+    }
 
     // 2. El nodo 0 envia su arreglo de distancias a todos los demas nodos.
     for (int i = 0; i < size; i++)
@@ -90,7 +100,7 @@ int main(int argc, char *argv[])
             if (rank != i)
             {
                 // El nodo 0 envia su arreglo de distancias al nodo i
-                MPI_Send(&distancia, size, MPI_INT, i, TAG_O_DISTANCIA, MPI_COMM_WORLD);
+                MPI_Send(&distancia_cero, size, MPI_INT, i, TAG_O_DISTANCIA, MPI_COMM_WORLD);
             }
         }
         else if (rank == i)
