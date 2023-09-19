@@ -6,6 +6,7 @@
 #define TAG_SOLICITUD 1
 #define TAG_RESPUESTA 2
 #define TAG_O_DISTANCIA 3
+#define TAG_O_DISTANCIA_MOD 4
 
 int main(int argc, char *argv[])
 {
@@ -80,6 +81,29 @@ int main(int argc, char *argv[])
     }
     */
 
+    // Arreglo de arreglos para almacenar los nodos en el camino mas corto
+    int lista[size][size + 1];
+
+    // Ponemos primero que la distancia minima a cada nodo i pasa por el nodo i, el resto de los nodos los ponemos en 0 y el ultimo ponemos i
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size + 1; j++)
+        {
+            if (j == 0)
+            {
+                lista[i][j] = i;
+            }
+            else if (j == size)
+            {
+                lista[i][j] = i;
+            }
+            else
+            {
+                lista[i][j] = 0;
+            }
+        }
+    }
+
     // Arreglo para que cada nodo almacene el arreglo de distancias del nodo 0
     int distancia_cero[size];
 
@@ -91,6 +115,12 @@ int main(int argc, char *argv[])
             distancia_cero[i] = distancia[i];
         }
     }
+
+    // Booleano para saber si se modifico alguna distancia
+    int cambio = 1;
+
+    // Numero de iteracion
+    int iteracion = 0;
 
     // 2. El nodo 0 envia su arreglo de distancias a todos los demas nodos.
     for (int i = 0; i < size; i++)
@@ -138,14 +168,86 @@ int main(int argc, char *argv[])
     */
 
     // 3. Para cada entrada i del arreglo, el nodo j almacena el mínimo entre la distancia actual de 0 a i y la suma de la distancia de 0 a j + la distancia de j a i
+    for (int i = 0; i < size; i++)
+    {
+        if (rank != 0)
+        {
+            int actual = distancia_cero[i];
+            int nueva = distancia_cero[rank] + distancia[i];
+            if (actual > nueva)
+            {
+                distancia_cero[i] = nueva;
+            }
+        }
+    }
 
     // 4. Los nodos regresan los arreglos modificados al nodo 0
+    if (rank != 0)
+    {
+        MPI_Send(&distancia_cero, size, MPI_INT, 0, TAG_O_DISTANCIA_MOD, MPI_COMM_WORLD);
+    }
 
-    // 5. El nodo 0 los revisa uno por uno, almacenando el mínimo para cada entrada.
+    // 5. El nodo 0 los revisa uno por uno, almacenando el mínimo para cada entrada. En caso de un cambio entonces quitamos al ultimo del arreglo de arreglos y ponemos que pasamos por el nodo i
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == 0)
+        {
+            if (rank != i)
+            {
+                int aux[size];
+                MPI_Recv(&aux, size, MPI_INT, i, TAG_O_DISTANCIA_MOD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                for (int j = 0; j < size; j++)
+                {
+                    int actual = distancia_cero[j];
+                    int nueva = aux[j];
+                    if (actual > nueva)
+                    {
+                        distancia_cero[j] = nueva;
+                        lista[j][iteracion] = i;
+                    }
+                }
+            }
+        }
+    }
 
     // 6. Repetir los pasos 2 a 5 hasta que no haya cambios en el arreglo del paso 5.
 
-    // 7. Mostrar el retraso total de la ruta del nodo 0 a todos los demas nodos
+    // 7. Mostrar el retraso total de la ruta del nodo 0 a todos los demas nodos y la grafica (el arreglo distancia de cada nodo)
+    if (rank == 0)
+    {
+        printf("\n");
+        // Mostramos el retraso total de la ruta del nodo 0 a todos los demas nodos
+        for (int i = 0; i < size; i++)
+        {
+            printf("La distancia del nodo 0 al nodo %i es %i\n", i, distancia_cero[i]);
+            // Mostramos el camino mas corto (si encontramos muchos ceros los ignoramos)
+            printf("El camino mas corto es: 0");
+            for (int j = 0; j < size + 1; j++)
+            {
+                if (lista[i][j] != 0)
+                {
+                    printf(" -> %i", lista[i][j]);
+                }
+            }
+            printf("\n");
+        }
+        printf("\n");
+        printf("Grafica de distancias:\n");
+    }
+    // Todos esperan a que el nodo 0 termine de imprimir
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            printf("Nodo %i: ", rank);
+            for (int j = 0; j < size; j++)
+            {
+                printf("%i, ", distancia[j]);
+            }
+            printf("\n");
+        }
+    }
 
     MPI_Finalize();
     return 0;
