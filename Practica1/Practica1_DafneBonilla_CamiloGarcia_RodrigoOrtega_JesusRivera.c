@@ -20,26 +20,53 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    // Inicializar el generador de números aleatorios con una semilla diferente para cada proceso
+    // Inicializar el generador de numeros aleatorios con una semilla diferente para cada proceso.
     time_t t;
     srand(time(&t) + rank);
 
-    // Arreglo para almacenar las distancias entre todos los nodos
+    // Arreglo para almacenar las distancias entre todos los nodos.
     int distancia[size];
     for (int i = 0; i < size; i++)
     {
         distancia[i] = 0;
     }
 
-    // checamos que el numero de nodos sea mayor a 1
-    if (size < 2)
+    // Checamos que se haya ingresado el numero de nodos
+    if (argc != 2)
     {
-        printf("La distancia del nodo 0 al nodo 0 es 0\n");
+        printf("Ingrese el numero de nodos\n");
+        MPI_Finalize();
+        return 0;
+    }
+    int n = atoi(argv[1]);
+
+    // Checamos que el numero de nodos sea igual al numero de procesos
+    if (n != size)
+    {
+        printf("El numero de nodos debe ser igual al numero de procesos\n");
         MPI_Finalize();
         return 0;
     }
 
-    // 1. Cada nodo obtiene su distancia inicial a todos los demas
+    // Checamos que el numero de nodos sea mayor a 1
+    if (n < 1)
+    {
+        printf("El numero de nodos debe ser mayor a 0\n");
+        printf("Size");
+        MPI_Finalize();
+        return 0;
+    }
+
+    // Checamos que el numero de nodos sea mayor a 1
+    if (n < 2)
+    {
+        printf("La distancia del nodo 0 al nodo 0 es 0\n");
+        printf("Size");
+        MPI_Finalize();
+        return 0;
+    }
+
+    // Paso 1) Cada punto solicita la distancia a todos los demas nodos.
     for (int i = 0; i < size; i++)
     {
         for (int j = 0; j < size; j++)
@@ -60,18 +87,18 @@ int main(int argc, char *argv[])
             {
                 // El nodo j recibe la solicitud del nodo i
                 MPI_Recv(&recv_msg, 1, MPI_INT, i, TAG_SOLICITUD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                // El nodo j genera un numero aleatorio entre 1 y 100
-                recv_msg = rand() % 100 + 1;
+                // El nodo j genera un numero aleatorio entre 1 y 1000
+                recv_msg = rand() % 1000 + 1;
                 // El nodo j envia el numero aleatorio al nodo i
                 MPI_Send(&recv_msg, 1, MPI_INT, i, TAG_RESPUESTA, MPI_COMM_WORLD);
             }
         }
     }
 
-    // Arreglo de arreglos para almacenar la ruta mas corta de cada nodo
+    // Arreglo de arreglos para almacenar la ruta mas corta de cada nodo.
     int ruta[size][3];
 
-    // Ponemos primero que la ruta mas corta al nodo i es 0, luego el nodo i y luego un -1 para indicar que no hay mas nodos
+    // Ponemos primero que la ruta mas corta al nodo i es 0, luego el nodo i y luego un -1 para indicar que no hay mas nodos.
     for (int i = 0; i < size; i++)
     {
         ruta[i][0] = 0;
@@ -96,8 +123,7 @@ int main(int argc, char *argv[])
 
     while (cambio)
     {
-
-        // 2. El nodo 0 envia su arreglo de distancias a todos los demas nodos.
+        // Paso 2) El nodo 0 transmite su arreglo de distancias minimas a todos los otros nodos
         for (int i = 0; i < size; i++)
         {
             if (rank == 0)
@@ -115,7 +141,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        // 3. Para cada entrada i del arreglo, el nodo j almacena el mínimo entre la distancia actual de 0 a i y la suma de la distancia de 0 a j + la distancia de j a i
+        // Paso 3) El nodo j guarda el valor mínimo entre la distancia minima desde 0 hasta i y la suma de la distancia desde 0 hasta j mas la distancia desde j hasta i.
         for (int i = 0; i < size; i++)
         {
             if (rank != 0)
@@ -129,7 +155,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        // 4. Los nodos regresan los arreglos modificados al nodo 0
+        // Paso 4) Los nodos transmiten su arreglo de distancias minimas modificadas al nodo 0.
         if (rank != 0)
         {
             MPI_Send(&distancia_cero, size, MPI_INT, 0, TAG_O_DISTANCIA_MOD, MPI_COMM_WORLD);
@@ -141,7 +167,7 @@ int main(int argc, char *argv[])
             cambio = 0;
         }
 
-        // 5. El nodo 0 los revisa uno por uno, almacenando el mínimo para cada entrada. En caso de un cambio entonces quitamos al ultimo del arreglo de arreglos y ponemos que pasamos por el nodo i
+        // Paso 5) El nodo 0 recibe los arreglos del paso 4, almacenando el minimo para cada entrada. En caso de un cambio entonces quitamos al ultimo del arreglo de rutas y ponemos que pasamos por el nodo i
         for (int i = 0; i < size; i++)
         {
             if (rank == 0)
@@ -185,10 +211,10 @@ int main(int argc, char *argv[])
             }
         }
 
-        // 6. Repetir los pasos 2 a 5 hasta que no haya cambios en el arreglo del paso 5.
+        // Paso 6) Repetir los pasos 2 a 5 hasta que no haya cambios
     }
 
-    // 7. Mostrar el retraso total de la ruta del nodo 0 a todos los demas nodos y la grafica (el arreglo distancia de cada nodo)
+    // Paso 7) Mostrar el retraso total de la ruta del nodo 0 a todos los demas nodos y la grafica (el arreglo distancia de cada nodo)
     if (rank == 0)
     {
         printf("\n");
@@ -199,7 +225,7 @@ int main(int argc, char *argv[])
 
             // Cadena para almacenar el camino mas corto
             char cadena[1100];
-            // Inicializamos la cadena como vacía
+            // Inicializamos la cadena como vacia
             cadena[0] = '\0';
 
             int booleano = 1;
@@ -269,6 +295,6 @@ int main(int argc, char *argv[])
 Para compilar desde /Practica1:
 mpicc Practica1_DafneBonilla_CamiloGarcia_RodrigoOrtega_JesusRivera.c
 Para ejecutar desde /Practica1:
-mpirun -np n --oversubscribe ./a.out
+mpirun -np n --oversubscribe ./a.out n
 Donde n es el numero de nodos deseados
 */
