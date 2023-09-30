@@ -6,6 +6,25 @@
 #define TAG_IMPOSTOR 0
 #define TAG_NUM_SUS 1
 
+// Funcion para contar el numero de generales que atacan y se retiran
+void mayoria(int planes[], int size, int *atacan, int *retiran)
+{
+    *atacan = 0;
+    *retiran = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (planes[i] == 1)
+        {
+            (*atacan)++;
+        }
+        else
+        {
+            (*retiran)++;
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int size, rank;
@@ -113,6 +132,9 @@ int main(int argc, char *argv[])
 
     // Arreglo para los planes de cada general
     int planes[size];
+
+    // Numero de generales que atacan y se retiran
+    int ataca, retira;
 
     // Ponemos todos los planes como 0
     for (int i = 0; i < size; i++)
