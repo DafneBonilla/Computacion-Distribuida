@@ -1,13 +1,7 @@
-Computación Distribuida 🖥️🕹️
-=========================================
-Curso Completo 2024-1
--------------------------------------------
+# 🗂️ Zips 
 
-### Profesor: Luis German Pérez Hernández
+### Índice:
 
-### Ayudantes:
-
-* Daniel Michel Tavera
-* Yael Antonio Calzada Martín
-
-Prácticas realizadas durante el curso de Computación Distribuida.
+1. Práctica 01 - Gráficas
+2. Práctica 02 - Consenso
+3. 
