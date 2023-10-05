@@ -4,26 +4,8 @@
 #include <time.h>
 
 #define TAG_IMPOSTOR 0
-#define TAG_NUM_SUS 1
-
-// Funcion para contar el numero de generales que atacan y se retiran
-void mayoria(int planes[], int size, int *atacan, int *retiran)
-{
-    *atacan = 0;
-    *retiran = 0;
-
-    for (int i = 0; i < size; i++)
-    {
-        if (planes[i] == 1)
-        {
-            (*atacan)++;
-        }
-        else
-        {
-            (*retiran)++;
-        }
-    }
-}
+#define TAG_PLAN 1
+#define TAG_REY 2
 
 int main(int argc, char *argv[])
 {
@@ -33,14 +15,15 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    // Checamos que se haya ingresado el numero de generales
-    if (argc != 2)
+    // Checamos que se haya ingresado el numero de generales e impostores
+    if (argc != 3)
     {
-        printf("Ingrese el numero de generales\n");
+        printf("Ingrese el numero de generales e impostores\n");
         MPI_Finalize();
         return 0;
     }
     int n = atoi(argv[1]);
+    int i = atoi(argv[2]);
 
     // Checamos que el numero de generales sea igual al numero de procesos
     if (n != size)
@@ -50,23 +33,31 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // Checamos que el numero de generales sea mayor a 0
-    if (n < 1)
+    // Checamos que el numero de generales sea mayor a 1
+    if (n < 2)
     {
-        printf("El numero de generales debe ser mayor a 0\n");
+        printf("El numero de generales debe ser mayor a 1\n");
         MPI_Finalize();
         return 0;
     }
 
-    // Checamos que el numero de generales no sea 1
-    if (n == 1)
+    // Checamos que el numero de impostores sea menor al numero de generales
+    if (i >= n)
     {
-        printf("No se puede tener un solo general\n");
+        printf("El numero de impostores debe ser menor al numero de generales\n");
         MPI_Finalize();
         return 0;
     }
 
-    // Inicializar el generador de numeros aleatorios con una semilla diferente para cada proceso.
+    // Checamos que el numero de impostores no sea menor a 0
+    if (i < 0)
+    {
+        printf("El numero de impostores no puede ser menor a 0\n");
+        MPI_Finalize();
+        return 0;
+    }
+
+    // Inicializar el generador de numeros aleatorios con una semilla diferente para cada proceso
     time_t t;
     srand(time(&t) + rank);
 
@@ -74,20 +65,7 @@ int main(int argc, char *argv[])
     int leal = 1;
 
     // Numero de impostores
-    int sus = 0;
-
-    // Decidimos cuantos generales seran impostores, buscamos que el numero de generales sea (4t + 1) donde t es el numero de posibles impostores
-    if (rank == 0)
-    {
-        if (size < 5)
-        {
-            sus = 1;
-        }
-        else
-        {
-            sus = (size - 1) / 4;
-        }
-    }
+    int sus = i;
 
     // Elegimos a los impostores y le avisamos a cada general si es impostor o no
     if (rank == 0)
@@ -118,23 +96,8 @@ int main(int argc, char *argv[])
     // Recibimos si somos impostores o no
     MPI_Recv(&leal, 1, MPI_INT, 0, TAG_IMPOSTOR, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // El general 0 envia a todos los generales el numero de impostores
-    if (rank == 0)
-    {
-        for (int i = 0; i < size; i++)
-        {
-            MPI_Send(&sus, 1, MPI_INT, i, TAG_NUM_SUS, MPI_COMM_WORLD);
-        }
-    }
-
-    // Recibimos el numero de impostores
-    MPI_Recv(&sus, 1, MPI_INT, 0, TAG_NUM_SUS, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
     // Arreglo para los planes de cada general
     int planes[size];
-
-    // Numero de generales que atacan y se retiran
-    int ataca, retira;
 
     // Ponemos todos los planes como 0
     for (int i = 0; i < size; i++)
@@ -145,22 +108,153 @@ int main(int argc, char *argv[])
     // Cada general decide si atacar o retirarse (atacar = 1, retirarse = 0) y lo guarda en su arreglo de planes
     planes[rank] = rand() % 2;
 
-    // Proceso de decision
-    // TODO: Hacer el algoritmo del rey
+    printf("General %d con plan %d\n", rank, planes[rank]); // Borrar esto cuando funcione todo
+
+    // Decision de la mayoria
+    int mayoria = 0;
+
+    // Cantidad de la mayoria
+    int cantidad_mayoria = 0;
+
+    // Cantidad de votos necesarios para la mayoria, debe ser mayor a (generales / 2) + impostores
+    int necesarios = (size / 2) + sus;
+
+    // Numero del rank del rey
+    int rey = 0;
+
+    // Ronda actual
+    int ronda = 1;
+
+    // Numero de rondas, debe ser igual a (impostores + 1)
+    int rondas = sus + 1;
+
+    // Lo de abajo se repite el numero de rondas
+
+    while (ronda < 3)
+    {
+
+        // Todos los generales actualizan la semilla del generador de numeros aleatorios para que el rey sea el mismo
+        srand(time(&t));
+
+        // Se decide quien es el rey
+        rey = rand() % size;
+
+        // Los generales consiguen nuevas semillas para el generador de numeros aleatorios
+        time_t t2;
+        srand(time(&t2) + rank);
+
+        // El general i envia su plan al general j, el general j recibe el plan y lo guarda
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                if (i == rank)
+                {
+                    if (j != rank)
+                    {
+                        if (leal == 1)
+                        {
+                            MPI_Send(&planes[i], 1, MPI_INT, j, TAG_PLAN, MPI_COMM_WORLD);
+                        }
+                        else
+                        {
+                            int plan_falso = rand() % 2;
+                            MPI_Send(&plan_falso, 1, MPI_INT, j, TAG_PLAN, MPI_COMM_WORLD);
+                        }
+                    }
+                }
+                else if (j == rank)
+                {
+                    if (i != rank)
+                    {
+                        MPI_Recv(&planes[i], 1, MPI_INT, i, TAG_PLAN, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    }
+                }
+            }
+        }
+
+        // Cada general cuenta planes y ve su mayoria
+        int votos_ataca = 0;
+        for (int i = 0; i < size; i++)
+        {
+            if (planes[i] == 1)
+            {
+                votos_ataca++;
+            }
+        }
+        int votos_retira = size - votos_ataca;
+        if (votos_ataca > votos_retira)
+        {
+            mayoria = 1;
+            cantidad_mayoria = votos_ataca;
+        }
+        else
+        {
+            mayoria = 0;
+            cantidad_mayoria = votos_retira;
+        }
+
+        // El rey envia su mayoria a todos los generales, los generales reciben la mayoria y la guardan
+        if (rank == rey)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                MPI_Send(&mayoria, 1, MPI_INT, i, TAG_REY, MPI_COMM_WORLD);
+            }
+            // El rey guarda su mayoria
+            planes[rey] = mayoria;
+        }
+        else
+        {
+            // Los demas generales reciben el plan del rey
+            int mayoria_rey = 0;
+            MPI_Recv(&mayoria_rey, 1, MPI_INT, rey, TAG_REY, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // Checamos si llegamos a un consenso, si no, guardamos el plan del rey
+            if (leal == 1)
+            {
+                if (cantidad_mayoria > necesarios)
+                {
+                    planes[rank] = mayoria;
+                }
+                else
+                {
+                    planes[rank] = mayoria_rey;
+                }
+            }
+        }
+        ronda++;
+    }
+
+    // Repetimos lo de arriba
+
+    // Vemos cual es nuestro plan final
+    int plan_final = planes[rank];
 
     // Cada general dice si es leal o impostor y su plan
+    if (rank == 0)
+    {
+        printf("Resultados:\n");
+    }
     for (int i = 0; i < size; i++)
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        if (rank == i)
+        if (i == rank)
         {
             if (leal == 1)
             {
-                printf("General %d: Soy leal y mi plan es %d\n", rank, planes[rank]);
+                printf("General %d: Leal, ", rank);
             }
             else
             {
-                printf("General %d: Soy impostor y mi plan es %d\n", rank, planes[rank]);
+                printf("General %d: Impostor, ", rank);
+            }
+            if (plan_final == 1)
+            {
+                printf("Ataca\n");
+            }
+            else
+            {
+                printf("Se retira\n");
             }
         }
     }
@@ -173,6 +267,6 @@ int main(int argc, char *argv[])
 Para compilar desde /Practica1:
 mpicc Practica2_DafneBonilla_CamiloGarcia_RodrigoOrtega_JesusRivera.c
 Para ejecutar desde /Practica1:
-mpirun -np n --oversubscribe ./a.out n
-Donde n es el numero de generales deseados
+mpirun -np n --oversubscribe ./a.out n i
+Donde n es el numero de generales deseados, i es el numero de impostores deseados
 */
