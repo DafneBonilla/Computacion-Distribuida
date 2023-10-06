@@ -245,7 +245,15 @@ int main(int argc, char *argv[])
         {
             for (int i = 0; i < size; i++)
             {
-                MPI_Send(&mayoria, 1, MPI_INT, i, TAG_REY, MPI_COMM_WORLD);
+                if (leal == 1)
+                {
+                    MPI_Send(&mayoria, 1, MPI_INT, i, TAG_REY, MPI_COMM_WORLD);
+                }
+                else
+                {
+                    int mayoria_falsa = rand() % 2;
+                    MPI_Send(&mayoria_falsa, 1, MPI_INT, i, TAG_REY, MPI_COMM_WORLD);
+                }
             }
             // El rey guarda su mayoria
             if (leal == 1)
