@@ -49,10 +49,10 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // Checamos que el numero de impostores no sea menor a 0
-    if (i < 0)
+    // Checamos que el numero de impostores no sea menor a 1
+    if (i < 1)
     {
-        printf("El numero de impostores no puede ser menor a 0\n");
+        printf("El numero de impostores no puede ser menor a 1\n");
         MPI_Finalize();
         return 0;
     }
@@ -108,7 +108,26 @@ int main(int argc, char *argv[])
     // Cada general decide si atacar o retirarse (atacar = 1, retirarse = 0) y lo guarda en su arreglo de planes
     planes[rank] = rand() % 2;
 
-    printf("General %d con plan %d\n", rank, planes[rank]); // Borrar esto cuando funcione todo
+    // Borrar esto luego de las pruebas /////////////////////////////////////////////////////////////////////
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        printf("Planes de primera decision:\n");
+    }
+    for (int i = 0; i < size; i++)
+    {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (i == rank)
+        {
+            printf("General %d con plan %d\n", rank, planes[rank]);
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        printf("\n");
+    }
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Decision de la mayoria
     int mayoria = 0;
@@ -130,11 +149,11 @@ int main(int argc, char *argv[])
 
     // Lo de abajo se repite el numero de rondas
 
-    while (ronda < 3)
+    while (ronda <= rondas)
     {
 
         // Todos los generales actualizan la semilla del generador de numeros aleatorios para que el rey sea el mismo
-        srand(time(&t));
+        srand(time(&t) + ronda);
 
         // Se decide quien es el rey
         rey = rand() % size;
@@ -194,6 +213,33 @@ int main(int argc, char *argv[])
             cantidad_mayoria = votos_retira;
         }
 
+        // Borrar esto luego de las pruebas /////////////////////////////////////////////////////////////////////
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+            printf("Arreglo de planes, ronda: %d\n", ronda);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        for (int i = 0; i < size; i++)
+        {
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (i == rank)
+            {
+                printf("General %d con los planes: ", i);
+                for (int j = 0; j < size; j++)
+                {
+                    printf("%d, ", planes[j]);
+                }
+                printf("\n");
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+            printf("\n");
+        }
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         // El rey envia su mayoria a todos los generales, los generales reciben la mayoria y la guardan
         if (rank == rey)
         {
@@ -202,7 +248,10 @@ int main(int argc, char *argv[])
                 MPI_Send(&mayoria, 1, MPI_INT, i, TAG_REY, MPI_COMM_WORLD);
             }
             // El rey guarda su mayoria
-            planes[rey] = mayoria;
+            if (leal == 1)
+            {
+                planes[rey] = mayoria;
+            }
         }
         else
         {
@@ -222,6 +271,33 @@ int main(int argc, char *argv[])
                 }
             }
         }
+        // Borrar esto luego de las pruebas /////////////////////////////////////////////////////////////////////
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+            printf("El rey es: %d\n", rey);
+            printf("Arreglo de planes luego del rey, ronda: %d\n", ronda);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        for (int i = 0; i < size; i++)
+        {
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (i == rank)
+            {
+                printf("General %d con los planes: ", i);
+                for (int j = 0; j < size; j++)
+                {
+                    printf("%d, ", planes[j]);
+                }
+                printf("\n");
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+            printf("\n");
+        }
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
         ronda++;
     }
 
