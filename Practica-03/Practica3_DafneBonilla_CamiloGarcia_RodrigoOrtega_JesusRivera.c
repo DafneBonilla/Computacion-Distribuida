@@ -129,6 +129,9 @@ int main(int argc, char *argv[])
         {
             MPI_Send(&eleccion, 1, MPI_INT, i, TAG_ACTI, MPI_COMM_WORLD);
         }
+
+        // Cada nodo recibe el primer nodo activo
+        MPI_Recv(&eleccion, 1, MPI_INT, 0, TAG_ACTI, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     */
 
