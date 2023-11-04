@@ -73,9 +73,11 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    /*
     // Inicializar el generador de numeros aleatorios con una semilla diferente para cada proceso
     time_t t;
     srand(time(&t) + rank);
+    */
 
     // Rango del nodo lider
     int lider = size;
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
     // El rango del nodo que inicia la eleccion (el primer nodo activo)
     int eleccion = 0;
 
+    /*
     // El nodo 0 genera numeros aleatorios para los nodos inactivos y les avisa a todos los nodos si estan activos o no
     if (rank == 0)
     {
@@ -106,6 +109,40 @@ int main(int argc, char *argv[])
                 nodosActivos[nodo] = 0;
                 inactivos++;
             }
+        }
+        for (int i = 0; i < size; i++)
+        {
+            MPI_Send(&nodosActivos[i], 1, MPI_INT, i, TAG_INAC, MPI_COMM_WORLD);
+        }
+        // Checamos cual es el primer nodo activo y lo enviamos a todos los nodos
+        for (int i = 0; i < size; i++)
+        {
+            if (nodosActivos[i] == 1)
+            {
+                eleccion = i;
+                break;
+            }
+        }
+        for (int i = 0; i < size; i++)
+        {
+            MPI_Send(&eleccion, 1, MPI_INT, i, TAG_ACTI, MPI_COMM_WORLD);
+        }
+    }
+    */
+
+    // El nodo 0 avisa a todos los nodos si estan activos o no
+    if (rank == 0)
+    {
+        int nodosActivos[size];
+        for (int i = 0; i < size; i++)
+        {
+            nodosActivos[i] = 1;
+        }
+        int inactivos = 0;
+        while (inactivos < inac)
+        {
+            nodosActivos[inactivos] = 0;
+            inactivos++;
         }
         for (int i = 0; i < size; i++)
         {
