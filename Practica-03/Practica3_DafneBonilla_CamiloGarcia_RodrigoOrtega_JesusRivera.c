@@ -89,8 +89,6 @@ int main(int argc, char *argv[])
     // El rango del nodo que inicia la eleccion (el primer nodo activo)
     int eleccion = 0;
 
-    // Idea de que los nodos inactivos se elijan aleatoriamente y que el primer nodo activo inicie la eleccion
-    // Fue descartada debido a la dificultad de poder hacer que siempre termine la ejecucion del programa, generado por la manera en que terminan los nodos
     // El nodo 0 genera numeros aleatorios para los nodos inactivos y les avisa a todos los nodos si estan activos o no
     if (rank == 0)
     {
@@ -150,6 +148,7 @@ int main(int argc, char *argv[])
     }
 
     /*
+    Otra forma de obtener los nodos inactivos y nodo que empieza la eleccion siempre es el nodo 0
     // El nodo 0 avisa a todos los nodos si estan activos o no
     if (rank == 0)
     {
@@ -190,7 +189,7 @@ int main(int argc, char *argv[])
         terminados[i] = 0;
     }
 
-    // Hacemos que el primer nodo activo inicie la eleccion (sera siempre el nodo 0)
+    // Hacemos que el primer nodo activo inicie la eleccion
     if (rank == eleccion)
     {
         for (int i = rank + 1; i < size; i++)
