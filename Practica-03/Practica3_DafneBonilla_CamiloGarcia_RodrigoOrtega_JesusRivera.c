@@ -8,6 +8,20 @@
 #define TAG_RESP 2
 #define TAG_VICT 3
 #define TAG_ACTI 4
+#define TAG_TERM 5
+
+// Funcion para ver si todos los nodos menores al nodo actual ya terminaron (usando el arreglo de nodos terminados)
+int yaTermine(int rank, int size, int terminados[])
+{
+    for (int i = 0; i < rank; i++)
+    {
+        if (terminados[i] == 0)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -118,24 +132,20 @@ int main(int argc, char *argv[])
     // Cada nodo recibe el rango del nodo que inicia la eleccion
     MPI_Recv(&eleccion, 1, MPI_INT, 0, TAG_ACTI, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // Algortimo de eleccion, Algoritmo de Bully
+    // Arreglo para saber que nodos ya terminaron
+    int terminados[size];
 
-    // Informacion: https://www.geeksforgeeks.org/bully-algorithm-in-distributed-system/ y wikipedia
-    /*
+    // Cada nodo inicia el arreglo de nodos terminados
+    for (int i = 0; i < size; i++)
+    {
+        terminados[i] = 0;
+    }
 
-    The algorithm uses the following message types:
-
-    Election Message: Sent to announce election.
-    Answer (Alive) Message: Responds to the Election message.
-    Coordinator (Victory) Message: Sent by winner of the election to announce victory.
-    When a process P recovers from failure, or the failure detector indicates that the current coordinator has failed, P performs the following actions:
-
-    If P has the highest process ID, it sends a Victory message to all other processes and becomes the new Coordinator. Otherwise, P broadcasts an Election message to all other processes with higher process IDs than itself.
-    If P receives no Answer after sending an Election message, then it broadcasts a Victory message to all other processes and becomes the Coordinator.
-    If P receives an Answer from a process with a higher ID, it sends no further messages for this election and waits for a Victory message. (If there is no Victory message after a period of time, it restarts the process at the beginning.)
-    If P receives an Election message from another process with a lower ID it sends an Answer message back and if it has not already started an election, it starts the election process at the beginning, by sending an Election message to higher-numbered processes.
-    If P receives a Coordinator message, it treats the sender as the coordinator.
-    */
+    // Si el nodo no esta activo, marca que ya termino
+    if (activo == 0)
+    {
+        terminados[rank] = 1;
+    }
 
     // Hacemos que el primer nodo activo inicie la eleccion
     if (rank == eleccion)
@@ -143,6 +153,67 @@ int main(int argc, char *argv[])
         for (int i = rank + 1; i < size; i++)
         {
             MPI_Send(&rank, 1, MPI_INT, i, TAG_ELEC, MPI_COMM_WORLD);
+        }
+        // Esperamos a que todos los nodos respondan y checamos si somos el nodo activo con el rango mas alto
+        int respuestas = 0;
+        for (int i = rank + 1; i < size; i++)
+        {
+            int resp;
+            MPI_Recv(&resp, 1, MPI_INT, i, TAG_RESP, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            if (resp != -1)
+            {
+                respuestas++;
+            }
+        }
+        // Si somos el nodo activo con el rango mas alto, enviamos un mensaje de victoria a todos los nodos
+        if (respuestas == 0)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                MPI_Send(&rank, 1, MPI_INT, i, TAG_VICT, MPI_COMM_WORLD);
+            }
+            // Recibimos nuestro propio mensaje de victoria y actualizamos el rango del nodo lider
+            MPI_Recv(&lider, 1, MPI_INT, rank, TAG_VICT, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        // Si no somos el nodo activo con el rango mas alto, esperamos a recibir un mensaje de victoria
+        else
+        {
+            int esperando = 1;
+            while (esperando != 0)
+            {
+                MPI_Status estado;
+                int emisor;
+                MPI_Recv(&emisor, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &estado);
+                switch (estado.MPI_TAG)
+                {
+                // Al recibir un mensaje de victoria, actualizamos el rango del nodo lider y dejamos de esperar mensajes
+                case 3:
+                    lider = emisor;
+                    // Enviamos un mensaje que ya terminamos a todos los nodos
+                    for (int i = 0; i < size; i++)
+                    {
+                        MPI_Send(&rank, 1, MPI_INT, i, TAG_TERM, MPI_COMM_WORLD);
+                    }
+                    terminados[rank] = 1;
+                    // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                    if (yaTermine(rank, size, terminados) == 1)
+                    {
+                        esperando = 0;
+                    }
+                    break;
+                // Al recibir un mensaje de terminar, marcamos que el emisor ya termino
+                case 5:
+                    terminados[emisor] = 1;
+                    // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                    if (yaTermine(rank, size, terminados) == 1)
+                    {
+                        esperando = 0;
+                    }
+                // En cualquier otro caso, el nodo sigue esperando mensajes
+                default:
+                    break;
+                }
+            }
         }
         // TODO: esperar respuestas y luego ponerse a esperar mensajes como los demas nodos
     }
@@ -167,23 +238,27 @@ int main(int argc, char *argv[])
                     {
                         MPI_Send(&rank, 1, MPI_INT, i, TAG_ELEC, MPI_COMM_WORLD);
                     }
-                    // Esperamos a que todos los nodos respondan y checamos si somos el nodo activo con el rango mas alto
-                    int respuestas = 0;
-                    for (int i = rank + 1; i < size; i++)
+                    // Si el nodo no ha terminado, inicia una eleccion
+                    if (terminados[rank] == 0)
                     {
-                        int resp;
-                        MPI_Recv(&resp, 1, MPI_INT, i, TAG_RESP, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        if (resp != -1)
+                        // Esperamos a que todos los nodos respondan y checamos si somos el nodo activo con el rango mas alto
+                        int respuestas = 0;
+                        for (int i = rank + 1; i < size; i++)
                         {
-                            respuestas++;
+                            int resp;
+                            MPI_Recv(&resp, 1, MPI_INT, i, TAG_RESP, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            if (resp != -1)
+                            {
+                                respuestas++;
+                            }
                         }
-                    }
-                    // Si somos el nodo activo con el rango mas alto, enviamos un mensaje de victoria a todos los nodos
-                    if (respuestas == 0)
-                    {
-                        for (int i = 0; i < size; i++)
+                        // Si somos el nodo activo con el rango mas alto, enviamos un mensaje de victoria a todos los nodos
+                        if (respuestas == 0)
                         {
-                            MPI_Send(&rank, 1, MPI_INT, i, TAG_VICT, MPI_COMM_WORLD);
+                            for (int i = 0; i < size; i++)
+                            {
+                                MPI_Send(&rank, 1, MPI_INT, i, TAG_VICT, MPI_COMM_WORLD);
+                            }
                         }
                     }
                 }
@@ -200,8 +275,26 @@ int main(int argc, char *argv[])
                 {
                     lider = emisor;
                 }
-                esperando = 0;
+                // Enviamos un mensaje que ya terminamos a todos los nodos
+                for (int i = 0; i < size; i++)
+                {
+                    MPI_Send(&rank, 1, MPI_INT, i, TAG_TERM, MPI_COMM_WORLD);
+                }
+                terminados[rank] = 1;
+                // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                if (yaTermine(rank, size, terminados) == 1)
+                {
+                    esperando = 0;
+                }
                 break;
+            // Al recibir un mensaje de terminar, marcamos que el emisor ya termino
+            case 5:
+                terminados[emisor] = 1;
+                // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                if (yaTermine(rank, size, terminados) == 1)
+                {
+                    esperando = 0;
+                }
             // En cualquier otro caso, el nodo sigue esperando mensajes
             default:
                 break;
@@ -209,6 +302,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
     // Cada nodo muestra si esta activo o no, y cual es el rank del nodo lider
     if (rank == 0)
     {
