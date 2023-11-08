@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
                 // Al recibir un mensaje de terminar, marcamos que el emisor ya termino
                 case 5:
                     terminados[emisor] = 1;
-                    // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                    // Si todos los nodos ya terminaron, el nodo actual termina
                     if (yaTermine(rank, size, terminados) == 1)
                     {
                         esperando = 0;
@@ -254,7 +254,6 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        // Si no somos el nodo activo con el rango mas alto, esperamos a recibir un mensaje de victoria
         else
         {
             int esperando = 1;
@@ -289,7 +288,7 @@ int main(int argc, char *argv[])
                 // Al recibir un mensaje de terminar, marcamos que el emisor ya termino
                 case 5:
                     terminados[emisor] = 1;
-                    // Si todos los nodos menores al nodo actual ya terminaron, el nodo actual termina
+                    // Si todos los nodos ya terminaron, el nodo actual termina
                     if (yaTermine(rank, size, terminados) == 1)
                     {
                         esperando = 0;
@@ -300,7 +299,6 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        // TODO: esperar respuestas y luego ponerse a esperar mensajes como los demas nodos
     }
     else
     {
