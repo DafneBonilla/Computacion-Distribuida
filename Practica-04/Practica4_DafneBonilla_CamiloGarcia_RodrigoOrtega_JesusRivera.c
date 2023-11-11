@@ -49,6 +49,28 @@ int *merge(int a1[], int t1, int a2[], int t2)
     return merged;
 }
 
+// Funcion merge sort
+void mergeSort(int arr[], int l, int r)
+{
+    if (l < r)
+    {
+        // Calculamos el indice del elemento que esta en la mitad del arreglo
+        int m = l + (r - l) / 2;
+
+        // Ordenamos la primera y la segunda mitad del arreglo
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+
+        // Mezclamos las mitades ordenadas
+        int *aux = merge(&arr[l], m - l + 1, &arr[m + 1], r - m);
+        for (int i = 0; i < r - l + 1; i++)
+        {
+            arr[l + i] = aux[i];
+        }
+        free(aux);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int size, rank;
@@ -197,7 +219,7 @@ int main(int argc, char *argv[])
     }
 
     // Cada nodo ordena su fraccion del arreglo usando merge sort
-    // TODO
+    mergeSort(fraccion, 0, tamord - 1);
 
     // Cada nodo envia su fraccion del arreglo ordenada al nodo 0
     for (int j = 0; j < size; j++)
@@ -208,55 +230,46 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Arreglo ordenado
-    int ordenado[i];
-
-    // El nodo 0 va recibiendo las fracciones del arreglo ordenadas de cada nodo y las va mezclando en el arreglo ordenado
+    // El nodo 0 va recibiendo las fracciones del arreglo ordenadas de cada nodo y las va uniendo
     if (rank == 0)
     {
-        // Arreglo donde se mezclaran las fracciones del arreglo ordenadas
-        int *arrmer = NULL;
-        for (int j = 0; j < size; j++)
-        {
-            if (j != 0)
-            {
-                int recibir = fracciones[j][1] - fracciones[j][0] + 1;
-                int *aux = (int *)malloc(recibir * sizeof(int));
-                MPI_Recv(aux, recibir, MPI_INT, j, TAG_FRAC_ORD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // Numero de elementos ordenados
+        int ordenados = tamord;
 
-                // Mezclamos el arreglo recibido con el arreglo arrmer
-                arrmer = merge(arrmer, i, aux, recibir);
+        // Arreglo de elementos ordenados hasta el momento
+        int *ordenado = (int *)malloc(ordenados * sizeof(int));
 
-                // Liberamos la memoria asignada dinámicamente
-                free(aux);
-            }
-            else
-            {
-                // Copiamos la fracción del arreglo 0 en el arreglo arrmer
-                arrmer = (int *)malloc(i * sizeof(int));
-                memcpy(arrmer, fraccion, i * sizeof(int));
-            }
-        }
-        // Copiamos el arreglo arrmer en el arreglo ordenado
-        for (int j = 0; j < i; j++)
+        // El nodo 0 guarda su fraccion del arreglo ordenada en el arreglo ordenado
+        for (int j = 0; j < tamord; j++)
         {
-            ordenado[j] = arrmer[j];
+            ordenado[j] = fraccion[j];
         }
 
-        // Liberamos la memoria asignada dinámicamente
-        free(arrmer);
-    }
+        // El nodo 0 va recibe las fracciones
+        for (int j = 1; j < size; j++)
+        {
+            int recibir = fracciones[j][1] - fracciones[j][0] + 1;
+            int *aux = (int *)malloc(recibir * sizeof(int));
+            MPI_Recv(aux, recibir, MPI_INT, j, TAG_FRAC_ORD, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // El nodo 0 muestra el arreglo ordenado
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0)
-    {
+            // Realiza el merge y actualiza el tamaño total de elementos ordenados
+            ordenado = merge(ordenado, ordenados, aux, recibir);
+            ordenados += recibir;
+
+            // Liberar la memoria del arreglo auxiliar
+            free(aux);
+        }
+
+        // Mostrar el arreglo ordenado
         printf("\nArreglo ordenado: ");
-        for (int j = 0; j < i; j++)
+        for (int j = 0; j < ordenados; j++)
         {
-            // printf("%d ", ordenado[j]);
+            printf("%d ", ordenado[j]);
         }
         printf("\n");
+
+        // Liberar la memoria del arreglo ordenado
+        free(ordenado);
     }
 
     MPI_Finalize();
