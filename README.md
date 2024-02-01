@@ -1,4 +1,4 @@
-Computación Distribuida 🖥️🕹
+Computación Distribuida 🖥️
 =========================================
 Curso Completo 2024-1
 -------------------------------------------
